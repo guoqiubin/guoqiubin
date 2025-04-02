@@ -1,0 +1,48 @@
+import requests
+from bs4 import BeautifulSoup
+
+url = "https://news.sina.com.cn"
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124 Safari/537.36"
+}
+
+print("开始请求网页...")
+try:
+    response = requests.get(url, headers=headers, timeout=10)
+    # 手动指定编码为 UTF-8（新浪通常是 UTF-8）
+    response.encoding = "utf-8"
+    response.raise_for_status()
+    print("网页请求成功！")
+except requests.RequestException as e:
+    print(f"请求失败: {e}")
+    exit()
+
+print("开始解析 HTML...")
+soup = BeautifulSoup(response.text, "html.parser")
+
+# 尝试抓取 <a> 标签，筛选含标题的（根据 class 或其他属性）
+articles = soup.find_all("a")  # 先抓所有 <a>
+print(f"找到 {len(articles)} 个 <a> 标签")
+
+news_list = []
+for article in articles:
+    title = article.get_text().strip()
+    # 过滤掉空标题或太短的（比如导航链接）
+    if len(title) > 5:  # 假设标题长度大于5
+        link = article.get("href", "无链接")  # 用 get() 避免 KeyError
+        if link.startswith("//"):
+            link = "https:" + link
+        elif link.startswith("/"):
+            link = "https://news.sina.com.cn" + link
+        news_list.append({"title": title, "link": link})
+        print(f"添加标题: {title} - {link}")
+
+print("抓取到的新闻标题和链接：")
+for i, news in enumerate(news_list, 1):
+    print(f"{i}. {news['title']} - {news['link']}")
+
+print("开始保存文件...")
+with open("sina_news.txt", "w", encoding="utf-8") as file:
+    for news in news_list:
+        file.write(f"{news['title']} - {news['link']}\n")
+print("结果已保存到 sina_news.txt 文件")
